@@ -18,7 +18,7 @@ const char *nama_tombol[] = {
     "user",        /* 3 */
     "mode_long",   /* 4 */
     "start_long",  /* 5 */
-    "user_long"    /* 6 */
+    "mode_long"    /* 6 */
 };
 
 /* ------------------------------------------------------------------ */
@@ -47,8 +47,11 @@ int jalankan_perintah_ssh(ssh_session sesi, const char *perintah) {
     /* baca output remote agar saluran selesai dengan bersih */
     char buf[256];
     int nbytes;
-    while ((nbytes = ssh_channel_read(saluran, buf, sizeof(buf) - 1, 0)) > 0) {
-        /* abaikan output */
+
+    while((nbytes = ssh_channel_read(saluran,buf,sizeof(buf)-1,0)) > 0)
+    {
+        buf[nbytes]=0;
+        printf("%s",buf);
     }
 
     ssh_channel_send_eof(saluran);
@@ -60,26 +63,20 @@ int jalankan_perintah_ssh(ssh_session sesi, const char *perintah) {
 /* ------------------------------------------------------------------ */
 /* publish tombol lalu berhenti setelah 1 detik                        */
 /* ------------------------------------------------------------------ */
-void publish_tombol(ssh_session sesi, const char *nama) {
-    char perintah[512];
+void publish_tombol(ssh_session sesi, const char *nama)
+{
+    char perintah[1024];
 
-    /*
-     * jalankan rostopic pub di background robot linux,
-     * tunggu 1 detik, lalu kill prosesnya (simulasi ctrl+c)
-     */
-    snprintf(perintah, sizeof(perintah),
-        "bash -l -c '"
-        "source /opt/ros/kinetic/setup.bash 2>/dev/null; "
-        "rostopic pub %s std_msgs/String \"{data: \\047%s\\047}\" &"
-        " PID=$!; sleep 1; kill $PID 2>/dev/null'",
-        ROS_TOPIC, nama);
+    snprintf(perintah,sizeof(perintah),
+    "bash -lc \"source /opt/ros/kinetic/setup.bash && "
+    "source ~/catkin_ws/devel/setup.bash && "
+    "rostopic pub -1 /robotis/open_cr/button std_msgs/String "
+    "\\\"data: '%s'\\\"\"",
+    nama);
 
-    printf("publish: %s -> [%s] ... berhenti setelah 1 detik\n", ROS_TOPIC, nama);
-    fflush(stdout);
+    printf("\nCMD: %s\n",perintah);
 
-    if (jalankan_perintah_ssh(sesi, perintah) != 0) {
-        fprintf(stderr, "gagal publish tombol: %s\n", nama);
-    }
+    jalankan_perintah_ssh(sesi,perintah);
 }
 
 /* ------------------------------------------------------------------ */
